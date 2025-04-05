@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Arquivo Excel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .config-section {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .config-title {
+            color: #0d6efd;
+            margin-bottom: 15px;
+        }
+        .form-label {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Upload de Arquivo Excel</h1>
+
+        <!-- Configuração de IDs de Localização -->
+        <div class="config-section">
+            <h3 class="config-title">Configuração de IDs de Localização</h3>
+            <form id="locationConfigForm">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h4 class="mb-3">Transfer IN</h4>
+                        <div class="mb-3">
+                            <label for="transferInPickup" class="form-label">ID Local de Embarque</label>
+                            <input type="number" class="form-control" id="transferInPickup" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transferInDropoff" class="form-label">ID Local de Desembarque</label>
+                            <input type="number" class="form-control" id="transferInDropoff" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h4 class="mb-3">Transfer OUT</h4>
+                        <div class="mb-3">
+                            <label for="transferOutPickup" class="form-label">ID Local de Embarque</label>
+                            <input type="number" class="form-control" id="transferOutPickup" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="transferOutDropoff" class="form-label">ID Local de Desembarque</label>
+                            <input type="number" class="form-control" id="transferOutDropoff" required>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Salvar Configuração</button>
+            </form>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Upload de Arquivo</h5>
+                <form id="uploadForm">
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Selecione o arquivo Excel</label>
+                        <input type="file" class="form-control" id="file" accept=".xlsx,.xls" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Enviar Arquivo</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="mt-4" style="display: none;">
+            <h3>Resultados do Processamento</h3>
+            <div id="processedData" class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title">Dados Processados</h5>
+                    <pre id="jsonOutput" class="bg-light p-3 rounded"></pre>
+                </div>
+            </div>
+            <div id="skippedData" class="card">
+                <div class="card-body">
+                    <h5 class="card-title">OSs Ignoradas</h5>
+                    <pre id="skippedOutput" class="bg-light p-3 rounded"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Função para carregar a configuração atual
+        async function loadLocationConfig() {
+            try {
+                const response = await fetch('/api/location-config', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                });
+                const config = await response.json();
+                
+                // Preencher os campos com os valores atuais
+                document.getElementById('transferInPickup').value = config.transferIn.pickup || '';
+                document.getElementById('transferInDropoff').value = config.transferIn.dropoff || '';
+                document.getElementById('transferOutPickup').value = config.transferOut.pickup || '';
+                document.getElementById('transferOutDropoff').value = config.transferOut.dropoff || '';
+            } catch (error) {
+                console.error('Erro ao carregar configuração:', error);
+            }
+        }
+
+        // Função para salvar a configuração
+        async function saveLocationConfig(event) {
+            event.preventDefault();
+            
+            const config = {
+                transferInPickup: parseInt(document.getElementById('transferInPickup').value),
+                transferInDropoff: parseInt(document.getElementById('transferInDropoff').value),
+                transferOutPickup: parseInt(document.getElementById('transferOutPickup').value),
+                transferOutDropoff: parseInt(document.getElementById('transferOutDropoff').value)
+            };
+
+            try {
+                const response = await fetch('/api/update-location-config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                if (response.ok) {
+                    alert('Configuração salva com sucesso!');
+                } else {
+                    throw new Error('Erro ao salvar configuração');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao salvar configuração. Verifique o console para mais detalhes.');
+            }
+        }
+
+        // Event Listeners
+        document.getElementById('locationConfigForm').addEventListener('submit', saveLocationConfig);
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Por favor, selecione um arquivo');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('results').style.display = 'block';
+                    document.getElementById('jsonOutput').textContent = JSON.stringify(result.data, null, 2);
+                    document.getElementById('skippedOutput').textContent = JSON.stringify(result.skipped, null, 2);
+                } else {
+                    throw new Error(result.error || 'Erro ao processar arquivo');
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao processar arquivo. Verifique o console para mais detalhes.');
+            }
+        });
+
+        // Carregar configuração ao iniciar a página
+        loadLocationConfig();
+    </script>
+</body>
+</html> 
