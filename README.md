@@ -9,6 +9,7 @@ A full-stack application for processing Excel files and sending data to an exter
 - Automatic data extraction from TRANSFER IN and TRANSFER OUT sheets
 - JSON generation and API submission
 - Logging of API responses in Supabase
+- Updated: Added new feature for configuration management
 
 ## Prerequisites
 
