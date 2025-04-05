@@ -27,4 +27,6 @@ Thumbs.db
 # Keep important directories
 !frontend/
 !public/
-!uploads/ 
+
+# Ignore uploads directory (temporary files)
+uploads/ 
